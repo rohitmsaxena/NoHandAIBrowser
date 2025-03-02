@@ -27,5 +27,20 @@
  */
 
 import './index.css';
+import {createRoot} from "react-dom/client";
+import React from "react";
+import App from "./App";
 
-console.log('👋 This message is being logged by "renderer.ts", included via Vite');
+// console.log('👋 This message is being logged by "renderer.ts", included via Vite');
+// Mount React app
+const container = document.getElementById('root');
+if (container) {
+    const root = createRoot(container);
+    root.render(
+        <React.StrictMode>
+            <App />
+        </React.StrictMode>
+    );
+}
+
+console.log('👋 React renderer initialized');

@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, WebContentsView, ipcMain } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -7,15 +7,72 @@ if (started) {
   app.quit();
 }
 
+let mainWindow: BrowserWindow;
+let webContentView: WebContentsView
+
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+  mainWindow = new BrowserWindow({
+    width: 1024,
+    height: 768,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
     },
   });
+
+  // Create the webContentView for browsing
+  webContentView = new WebContentsView({
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    }
+  });
+
+  // Set initial browser view position (below header)
+  if (mainWindow) {
+    const contentBounds = mainWindow.getContentBounds();
+    const headerHeight = 70; // Height for our browser controls
+    webContentView.setBounds({
+      x: 0,
+      y: headerHeight,
+      width: contentBounds.width,
+      height: contentBounds.height - headerHeight
+    });
+    mainWindow.setContentView(webContentView);
+
+// Updated code:
+    mainWindow.on('resize', () => {
+      const newBounds = mainWindow?.getContentBounds();
+      if (newBounds && webContentView) {
+        webContentView.setBounds({
+          x: 0,
+          y: headerHeight,
+          width: newBounds.width,
+          height: newBounds.height - headerHeight
+        });
+        // Ensure content view is properly set after resize
+        mainWindow?.setContentView(webContentView);
+      }
+    });
+  }
+
+  // Load default URL in the web contents view
+  webContentView.webContents.loadURL('https://www.example.com');
+
+  // Send URL updates to renderer
+  webContentView.webContents.on('did-navigate', () => {
+    const currentUrl = webContentView?.webContents.getURL();
+    mainWindow?.webContents.send('url-changed', currentUrl);
+  });
+
+  webContentView.webContents.on('did-navigate-in-page', () => {
+    const currentUrl = webContentView?.webContents.getURL();
+    mainWindow?.webContents.send('url-changed', currentUrl);
+  });
+
 
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -25,8 +82,52 @@ const createWindow = () => {
   }
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
+  setupIPCHandlers();
 };
+
+function setupIPCHandlers() {
+  // Navigate to URL
+  ipcMain.handle('navigate-to', async (_event, url: string) => {
+    if (!webContentView) return false;
+
+    // Add protocol if missing
+    if (!/^https?:\/\//i.test(url)) {
+      url = 'https://' + url;
+    }
+
+    try {
+      await webContentView.webContents.loadURL(url);
+      return true;
+    } catch (error) {
+      console.error('Navigation error:', error);
+      return false;
+    }
+  });
+
+  // Go back
+  ipcMain.handle('go-back', () => {
+    if (webContentView?.webContents.canGoBack()) {
+      webContentView.webContents.goBack();
+      return true;
+    }
+    return false;
+  });
+
+  // Go forward
+  ipcMain.handle('go-forward', () => {
+    if (webContentView?.webContents.canGoForward()) {
+      webContentView.webContents.goForward();
+      return true;
+    }
+    return false;
+  });
+
+  // Get current URL
+  ipcMain.handle('get-current-url', () => {
+    return webContentView?.webContents.getURL() || '';
+  });
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
