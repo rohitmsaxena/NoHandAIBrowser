@@ -35,7 +35,12 @@ const config: ForgeConfig = {
           target: "preload",
         },
         {
-          entry: "src/preloads/tabs-preload.ts",
+          entry: "src/preloads/tabsPreload.ts",
+          config: "vite.preload.config.ts",
+          target: "preload",
+        },
+        {
+          entry: "src/preloads/sidebarPreload.ts",
           config: "vite.preload.config.ts",
           target: "preload",
         },

@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import { tabManager } from "../managers/tabManager";
 import { navigationManager } from "../managers/navigationManager";
+import { sidebarManager } from "../managers/sidebarManager";
 import { IPC_CHANNELS } from "../constants/appConstants";
 
 export class IpcHandler {
@@ -8,6 +9,7 @@ export class IpcHandler {
   setupHandlers(): void {
     this.setupTabHandlers();
     this.setupNavigationHandlers();
+    this.setupSidebarHandlers();
   }
 
   // Setup IPC handlers for tab management
@@ -55,6 +57,24 @@ export class IpcHandler {
     // Get current URL
     ipcMain.handle(IPC_CHANNELS.GET_CURRENT_URL, () => {
       return navigationManager.getCurrentUrl();
+    });
+  }
+
+  // Setup IPC handlers for sidebar
+  private setupSidebarHandlers(): void {
+    // Toggle sidebar
+    ipcMain.handle(IPC_CHANNELS.TOGGLE_SIDEBAR, () => {
+      return sidebarManager.toggleSidebar();
+    });
+
+    // Get sidebar state
+    ipcMain.handle(IPC_CHANNELS.GET_SIDEBAR_STATE, () => {
+      return sidebarManager.getSidebarState();
+    });
+
+    // Send chat message
+    ipcMain.handle(IPC_CHANNELS.SEND_CHAT_MESSAGE, async (_event, message) => {
+      return sidebarManager.sendChatMessage(message);
     });
   }
 }

@@ -1,7 +1,12 @@
 import { WebContentsView } from "electron";
-import { ITabManager, TabInfo, RendererTabInfo } from "../types/browserTypes";
+import { ITabManager, RendererTabInfo, TabInfo } from "../types/browserTypes";
 import { windowManager } from "./windowManager";
-import { HEADER_HEIGHT, DEFAULT_URL } from "../constants/appConstants";
+import {
+  DEFAULT_URL,
+  HEADER_HEIGHT,
+  SIDEBAR_COLLAPSED_WIDTH,
+  SIDEBAR_EXPANDED_WIDTH,
+} from "../constants/appConstants";
 
 export class TabManager implements ITabManager {
   private tabs: TabInfo[] = [];
@@ -22,10 +27,15 @@ export class TabManager implements ITabManager {
 
     // Set initial bounds (only visible for active tab)
     const contentBounds = windowManager.getContentBounds();
+    const isSidebarExpanded = windowManager.getSidebarState();
+    const sidebarWidth = isSidebarExpanded
+      ? SIDEBAR_EXPANDED_WIDTH
+      : SIDEBAR_COLLAPSED_WIDTH;
+
     contentView.setBounds({
       x: 0,
       y: HEADER_HEIGHT,
-      width: contentBounds.width,
+      width: contentBounds.width - sidebarWidth,
       height: contentBounds.height - HEADER_HEIGHT,
     });
 
@@ -91,6 +101,10 @@ export class TabManager implements ITabManager {
   // Activate a tab by ID
   activateTab(tabId: string): void {
     const contentBounds = windowManager.getContentBounds();
+    const isSidebarExpanded = windowManager.getSidebarState();
+    const sidebarWidth = isSidebarExpanded
+      ? SIDEBAR_EXPANDED_WIDTH
+      : SIDEBAR_COLLAPSED_WIDTH;
 
     // Deactivate current active tab and activate the new one
     this.tabs.forEach((tab) => {
@@ -100,7 +114,7 @@ export class TabManager implements ITabManager {
         tab.contentView.setBounds({
           x: 0,
           y: HEADER_HEIGHT,
-          width: contentBounds.width,
+          width: contentBounds.width - sidebarWidth,
           height: contentBounds.height - HEADER_HEIGHT,
         });
 
@@ -112,7 +126,7 @@ export class TabManager implements ITabManager {
         tab.contentView.setBounds({
           x: 0,
           y: HEADER_HEIGHT,
-          width: contentBounds.width,
+          width: contentBounds.width - sidebarWidth,
           height: 0, // Set height to 0 to hide
         });
       }
@@ -123,6 +137,26 @@ export class TabManager implements ITabManager {
 
     // Update navigation UI
     this.notifyNavigationUpdated();
+  }
+
+  // Adjust tab layouts when sidebar state changes
+  updateTabLayoutsForSidebar(): void {
+    const contentBounds = windowManager.getContentBounds();
+    const isSidebarExpanded = windowManager.getSidebarState();
+    const sidebarWidth = isSidebarExpanded
+      ? SIDEBAR_EXPANDED_WIDTH
+      : SIDEBAR_COLLAPSED_WIDTH;
+
+    // Update the active tab's bounds
+    const activeTab = this.getActiveTab();
+    if (activeTab) {
+      activeTab.contentView.setBounds({
+        x: 0,
+        y: HEADER_HEIGHT,
+        width: contentBounds.width - sidebarWidth,
+        height: contentBounds.height - HEADER_HEIGHT,
+      });
+    }
   }
 
   // Get all tabs (simplified for renderer)
