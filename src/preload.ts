@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-// Expose protected methods that allow the renderer process to use
-// the ipcRenderer without exposing the entire object
+// Expose protected methods for navigation control
 contextBridge.exposeInMainWorld('electronAPI', {
     // Navigation functions
     navigateTo: (url: string) => ipcRenderer.invoke('navigate-to', url),
@@ -17,8 +16,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('url-changed', (_event, url) => callback(url));
     },
 
-    // Additional helper to remove listeners when component unmounts
-    removeUrlChangeListener: () => {
+    onLoadingChange: (callback: (isLoading: boolean) => void) => {
+        // Remove any existing listeners to avoid duplicates
+        ipcRenderer.removeAllListeners('loading-changed');
+        // Add the new listener
+        ipcRenderer.on('loading-changed', (_event, isLoading) => callback(isLoading));
+    },
+
+    // Tab functions directly accessible from the navigation bar
+    createTab: (url?: string) => ipcRenderer.invoke('create-tab', url),
+
+    // Cleanup functions
+    removeListeners: () => {
         ipcRenderer.removeAllListeners('url-changed');
+        ipcRenderer.removeAllListeners('loading-changed');
     }
 });
