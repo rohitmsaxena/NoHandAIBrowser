@@ -8,6 +8,7 @@ interface ElectronAPI {
     goForward: () => Promise<boolean>;
     getCurrentUrl: () => Promise<string>;
     onUrlChange: (callback: (url: string) => void) => void;
+    removeUrlChangeListener: () => void;
 }
 
 // Add type declaration for the window.electronAPI
@@ -31,21 +32,39 @@ const App: React.FC = () => {
             setUrl(newUrl);
             setIsLoading(false);
         });
+
+        // Cleanup listener when component unmounts
+        return () => {
+            window.electronAPI.removeUrlChangeListener();
+        };
     }, []);
 
     const handleNavigate = async () => {
         if (!url.trim()) return;
 
         setIsLoading(true);
-        await window.electronAPI.navigateTo(url);
+
+        // Properly format URL if needed
+        let formattedUrl = url;
+        if (!/^https?:\/\//i.test(formattedUrl)) {
+            formattedUrl = 'https://' + formattedUrl;
+        }
+
+        await window.electronAPI.navigateTo(formattedUrl);
     };
 
     const handleGoBack = async () => {
-        await window.electronAPI.goBack();
+        const success = await window.electronAPI.goBack();
+        if (!success) {
+            console.log('Cannot go back - no history');
+        }
     };
 
     const handleGoForward = async () => {
-        await window.electronAPI.goForward();
+        const success = await window.electronAPI.goForward();
+        if (!success) {
+            console.log('Cannot go forward - no forward history');
+        }
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -55,7 +74,7 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="browser-container">
+        <div className="navigation-container">
             <div className="browser-toolbar">
                 <div className="nav-buttons">
                     <button
@@ -81,7 +100,7 @@ const App: React.FC = () => {
                         className="url-input"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
-                        onKeyPress={handleKeyPress}
+                        onKeyDownCapture={handleKeyPress}
                         placeholder="Enter URL..."
                     />
                     {isLoading && <div className="loading-indicator">Loading...</div>}
@@ -94,8 +113,6 @@ const App: React.FC = () => {
                     Go
                 </button>
             </div>
-            {/* WebContentsView is rendered in the main process */}
-            <div className="browser-content"></div>
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, WebContentsView, ipcMain } from 'electron';
+import { app, BaseWindow, WebContentsView, ipcMain, BrowserWindowConstructorOptions } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -7,23 +7,39 @@ if (started) {
   app.quit();
 }
 
-let mainWindow: BrowserWindow;
-let webContentView: WebContentsView
+let mainWindow: BaseWindow;
+let navigationView: WebContentsView;
+let contentView: WebContentsView;
+
+const HEADER_HEIGHT = 70; // Height for navigation controls
 
 const createWindow = () => {
-  // Create the browser window.
-  mainWindow = new BrowserWindow({
+  // Define options for the BaseWindow
+  const windowOptions: BrowserWindowConstructorOptions = {
     width: 1024,
     height: 768,
+    show: false, // Don't show until everything is ready
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  };
+
+  // Create the main BaseWindow
+  mainWindow = new BaseWindow(windowOptions);
+
+  // Create the navigation WebContentsView for browser controls
+  navigationView = new WebContentsView({
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false
-    },
+    }
   });
 
-  // Create the webContentView for browsing
-  webContentView = new WebContentsView({
+  // Create the content WebContentsView for web page rendering
+  contentView = new WebContentsView({
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -31,65 +47,88 @@ const createWindow = () => {
     }
   });
 
-  // Set initial browser view position (below header)
-  if (mainWindow) {
-    const contentBounds = mainWindow.getContentBounds();
-    const headerHeight = 70; // Height for our browser controls
-    webContentView.setBounds({
+  // Set bounds for navigation view (top part of the window)
+  const contentBounds = mainWindow.getContentBounds();
+  navigationView.setBounds({
+    x: 0,
+    y: 0,
+    width: contentBounds.width,
+    height: HEADER_HEIGHT
+  });
+
+  // Set bounds for content view (bottom part of the window)
+  contentView.setBounds({
+    x: 0,
+    y: HEADER_HEIGHT,
+    width: contentBounds.width,
+    height: contentBounds.height - HEADER_HEIGHT
+  });
+
+  // Add views to the window
+  mainWindow.contentView.addChildView(navigationView);
+  mainWindow.contentView.addChildView(contentView);
+
+  // Handle window resize
+  mainWindow.on('resize', () => {
+    const newBounds = mainWindow.getContentBounds();
+
+    // Update navigation view bounds
+    navigationView.setBounds({
       x: 0,
-      y: headerHeight,
-      width: contentBounds.width,
-      height: contentBounds.height - headerHeight
+      y: 0,
+      width: newBounds.width,
+      height: HEADER_HEIGHT
     });
-    mainWindow.setContentView(webContentView);
 
-// Updated code:
-    mainWindow.on('resize', () => {
-      const newBounds = mainWindow?.getContentBounds();
-      if (newBounds && webContentView) {
-        webContentView.setBounds({
-          x: 0,
-          y: headerHeight,
-          width: newBounds.width,
-          height: newBounds.height - headerHeight
-        });
-        // Ensure content view is properly set after resize
-        mainWindow?.setContentView(webContentView);
-      }
+    // Update content view bounds
+    contentView.setBounds({
+      x: 0,
+      y: HEADER_HEIGHT,
+      width: newBounds.width,
+      height: newBounds.height - HEADER_HEIGHT
     });
-  }
-
-  // Load default URL in the web contents view
-  webContentView.webContents.loadURL('https://www.example.com');
-
-  // Send URL updates to renderer
-  webContentView.webContents.on('did-navigate', () => {
-    const currentUrl = webContentView?.webContents.getURL();
-    mainWindow?.webContents.send('url-changed', currentUrl);
   });
 
-  webContentView.webContents.on('did-navigate-in-page', () => {
-    const currentUrl = webContentView?.webContents.getURL();
-    mainWindow?.webContents.send('url-changed', currentUrl);
-  });
-
-
-  // and load the index.html of the app.
+  // Load navigation UI in the navigation view
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    navigationView.webContents.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    navigationView.webContents.loadFile(
+        path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`)
+    );
   }
 
-  // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
-  setupIPCHandlers();
+  // Load default website in the content view
+  contentView.webContents.loadURL('https://www.example.com');
+
+  // Set up communication between the views
+  setupIpcHandlers();
+
+  // Send URL updates to navigation view
+  contentView.webContents.on('did-navigate', () => {
+    const currentUrl = contentView.webContents.getURL();
+    navigationView.webContents.send('url-changed', currentUrl);
+  });
+
+  contentView.webContents.on('did-navigate-in-page', () => {
+    const currentUrl = contentView.webContents.getURL();
+    navigationView.webContents.send('url-changed', currentUrl);
+  });
+
+  // Show window when everything is loaded
+  navigationView.webContents.once('did-finish-load', () => {
+    mainWindow.show();
+  });
+
+  // Open DevTools for debugging if needed
+  // navigationView.webContents.openDevTools();
+  // contentView.webContents.openDevTools();
 };
 
-function setupIPCHandlers() {
+function setupIpcHandlers() {
   // Navigate to URL
   ipcMain.handle('navigate-to', async (_event, url: string) => {
-    if (!webContentView) return false;
+    if (!contentView) return false;
 
     // Add protocol if missing
     if (!/^https?:\/\//i.test(url)) {
@@ -97,7 +136,7 @@ function setupIPCHandlers() {
     }
 
     try {
-      await webContentView.webContents.loadURL(url);
+      await contentView.webContents.loadURL(url);
       return true;
     } catch (error) {
       console.error('Navigation error:', error);
@@ -107,8 +146,8 @@ function setupIPCHandlers() {
 
   // Go back
   ipcMain.handle('go-back', () => {
-    if (webContentView?.webContents.canGoBack()) {
-      webContentView.webContents.goBack();
+    if (contentView?.webContents.navigationHistory.canGoBack()) {
+      contentView.webContents.navigationHistory.goBack();
       return true;
     }
     return false;
@@ -116,8 +155,8 @@ function setupIPCHandlers() {
 
   // Go forward
   ipcMain.handle('go-forward', () => {
-    if (webContentView?.webContents.canGoForward()) {
-      webContentView.webContents.goForward();
+    if (contentView?.webContents.navigationHistory.canGoForward()) {
+      contentView.webContents.navigationHistory.goForward();
       return true;
     }
     return false;
@@ -125,18 +164,15 @@ function setupIPCHandlers() {
 
   // Get current URL
   ipcMain.handle('get-current-url', () => {
-    return webContentView?.webContents.getURL() || '';
+    return contentView?.webContents.getURL() || '';
   });
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.on('ready', createWindow);
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
@@ -144,12 +180,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
+  // On macOS, re-create a window when the dock icon is clicked and no other windows are open
+  if (BaseWindow.getAllWindows().length === 0) {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.

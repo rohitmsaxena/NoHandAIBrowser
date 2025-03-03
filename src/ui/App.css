@@ -1,7 +1,8 @@
-.browser-container {
+.navigation-container {
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    height: 100vh;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
@@ -11,7 +12,8 @@
     padding: 8px 12px;
     background-color: #f5f5f5;
     border-bottom: 1px solid #ddd;
-    height: 54px;
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .nav-buttons {
@@ -75,9 +77,4 @@
 
 .go-button:hover {
     background-color: #006cc1;
-}
-
-.browser-content {
-    flex: 1;
-    /* Content is actually rendered by WebContentsView in the main process */
 }
