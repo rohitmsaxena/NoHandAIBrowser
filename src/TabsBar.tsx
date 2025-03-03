@@ -25,20 +25,28 @@ declare global {
 
 const TabsBar: React.FC = () => {
     const [tabs, setTabs] = useState<TabInfo[]>([]);
+    const [apiAvailable, setApiAvailable] = useState<boolean>(false);
+    const [errorMessage, setErrorMessage] = useState<string>('');
 
     // Immediate visual feedback for debugging
     console.log('TabsBar component rendering');
+    console.log('Window object keys:', Object.keys(window));
+    console.log('TabsAPI available:', window.tabsAPI !== undefined);
 
     useEffect(() => {
         console.log('TabsBar component mounted');
 
-        // Get initial tabs
+        // Check if tabsAPI is available
         if (window.tabsAPI) {
+            setApiAvailable(true);
+
+            // Get initial tabs
             window.tabsAPI.getTabs().then(initialTabs => {
                 console.log('Initial tabs:', initialTabs);
                 setTabs(initialTabs);
             }).catch(err => {
                 console.error('Error getting initial tabs:', err);
+                setErrorMessage('Error loading tabs: ' + err.message);
             });
 
             // Listen for tab updates
@@ -54,18 +62,30 @@ const TabsBar: React.FC = () => {
             };
         } else {
             console.error('tabsAPI not available in window object');
+            setApiAvailable(false);
+            setErrorMessage('Tabs API not available - check preload script');
         }
     }, []);
 
-    // Show a simple default UI if tabsAPI is not available or there are no tabs
-    if (!window.tabsAPI || tabs.length === 0) {
+    // Show a simple default UI if tabsAPI is not available
+    if (!apiAvailable) {
+        return (
+            <div className="tabs-bar" style={{ background: '#e9e9e9', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                <div style={{ color: 'red', marginBottom: '10px' }}>{errorMessage || 'Tabs API not available'}</div>
+                <div>Available window APIs: {Object.keys(window).filter(key => key.includes('API')).join(', ')}</div>
+            </div>
+        );
+    }
+
+    // Show a loading state while we're waiting for tabs
+    if (tabs.length === 0) {
         return (
             <div className="tabs-bar" style={{ background: '#e9e9e9', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <button
-                    onClick={() => window.tabsAPI?.createTab()}
+                    onClick={() => window.tabsAPI.createTab()}
                     style={{ padding: '5px 10px', cursor: 'pointer' }}
                 >
-                    New Tab
+                    Create First Tab
                 </button>
             </div>
         );

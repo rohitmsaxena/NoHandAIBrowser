@@ -37,24 +37,49 @@ const createWindow = () => {
     show: false, // Don't show until everything is ready
   };
 
+  // Check if the preload scripts exist
+  const preloadPath = path.join(__dirname, 'preload.js');
+  const tabsPreloadPath = path.join(__dirname, 'tabs-preload.js');
+
+  console.log('Looking for preload scripts:');
+  console.log('Main preload:', preloadPath);
+  console.log('Tabs preload:', tabsPreloadPath);
+
+  try {
+    // Log preload script paths for debugging
+    require('fs').accessSync(preloadPath, require('fs').constants.F_OK);
+    console.log('Main preload script exists');
+  } catch (err) {
+    console.error('Main preload script not found:', err);
+  }
+
+  try {
+    require('fs').accessSync(tabsPreloadPath, require('fs').constants.F_OK);
+    console.log('Tabs preload script exists');
+  } catch (err) {
+    console.error('Tabs preload script not found:', err);
+  }
+
   // Create the main BaseWindow
   mainWindow = new BaseWindow(windowOptions);
 
   // Create the tabs WebContentsView
   tabsView = new WebContentsView({
     webPreferences: {
-      preload: path.join(__dirname, 'tabs-preload.js'),
+      preload: tabsPreloadPath, // Use the main preload script
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      devTools: true // Enable DevTools for debugging
     }
   });
 
   // Create the navigation WebContentsView
   navigationView = new WebContentsView({
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: preloadPath, // Use the main preload script
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      devTools: true // Enable DevTools for debugging
     }
   });
 
@@ -76,12 +101,6 @@ const createWindow = () => {
     width: contentBounds.width,
     height: NAVIGATION_HEIGHT
   });
-
-  // DEBUGGING: Log some info
-  console.log('Content bounds:', contentBounds);
-  console.log('Tab view bounds:', tabsView.getBounds());
-  console.log('Navigation view bounds:', navigationView.getBounds());
-
 
   // Add views to the window using the contentView property
   mainWindow.contentView.addChildView(tabsView);
@@ -120,28 +139,34 @@ const createWindow = () => {
     });
   });
 
-  // Load the tabs UI explicitly with a clear view parameter
+  // Load the tabs UI
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     tabsView.webContents.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}#tabs`);
   } else {
     tabsView.webContents.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      { hash: 'tabs' }
+        path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+        { hash: 'tabs' }
     );
   }
 
-  // Load the navigation UI explicitly with a clear view parameter
+  // Open DevTools for tabs view (helpful for debugging)
+  tabsView.webContents.openDevTools({ mode: 'detach' });
+
+  // Load the navigation UI
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     navigationView.webContents.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}#navigation`);
   } else {
     navigationView.webContents.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      { hash: 'navigation' }
+        path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+        { hash: 'navigation' }
     );
   }
 
+  // Open DevTools for navigation view (helpful for debugging)
+  navigationView.webContents.openDevTools({ mode: 'detach' });
+
   // Create an initial tab
-  createNewTab('https://www.example.com');
+  createNewTab('https://www.google.com');
 
   // Set up IPC handlers
   setupIpcHandlers();
@@ -189,7 +214,7 @@ function createNewTab(url: string) {
     id: tabId,
     contentView,
     url,
-    title: 'New Tab',
+    title: 'Loading...', // Will be updated when page title is available
     isActive: false
   };
 
@@ -224,8 +249,20 @@ function setupTabEvents(tab: TabInfo) {
       navigationView.webContents.send('url-changed', currentUrl);
     }
 
-    // Update tab info
-    updateTabInfo(id, { url: currentUrl });
+    // If no title is set yet, use the domain as a temporary title
+    if (!tab.title || tab.title === 'Loading...') {
+      try {
+        const url = new URL(currentUrl);
+        const domain = url.hostname;
+        updateTabInfo(id, { url: currentUrl, title: domain });
+      } catch {
+        // If URL parsing fails, just update the URL
+        updateTabInfo(id, { url: currentUrl });
+      }
+    } else {
+      // Just update the URL
+      updateTabInfo(id, { url: currentUrl });
+    }
   });
 
   // Update URL in navigation bar for in-page navigation (e.g., hash changes)
@@ -243,10 +280,13 @@ function setupTabEvents(tab: TabInfo) {
 
   // Update tab title when page title changes
   contentView.webContents.on('page-title-updated', (event, title) => {
-    tab.title = title;
+    // Only update if we have a meaningful title
+    if (title && title.trim() !== '') {
+      tab.title = title;
 
-    // Update tab info
-    updateTabInfo(id, { title });
+      // Update tab info
+      updateTabInfo(id, { title });
+    }
   });
 
   // Handle loading states
@@ -257,6 +297,21 @@ function setupTabEvents(tab: TabInfo) {
   });
 
   contentView.webContents.on('did-stop-loading', () => {
+    // If we still don't have a proper title, try to use the domain
+    if (!tab.title || tab.title === 'Loading...') {
+      try {
+        const currentUrl = contentView.webContents.getURL();
+        const url = new URL(currentUrl);
+        const domain = url.hostname;
+        tab.title = domain || 'New Tab';
+        updateTabInfo(id, { title: tab.title });
+      } catch {
+        // If that fails, just use "New Tab"
+        tab.title = 'New Tab';
+        updateTabInfo(id, { title: tab.title });
+      }
+    }
+
     if (tab.isActive) {
       navigationView.webContents.send('loading-changed', false);
     }
@@ -341,7 +396,7 @@ function closeTab(tabId: string) {
 
   // If there are no more tabs, create a new one
   if (tabs.length === 0) {
-    createNewTab('https://www.example.com');
+    createNewTab('https://www.goole.com');
     return;
   }
 
@@ -357,7 +412,7 @@ function closeTab(tabId: string) {
 
 function setupIpcHandlers() {
   // Tab management
-  ipcMain.handle('create-tab', async (_event, url = 'https://www.example.com') => {
+  ipcMain.handle('create-tab', async (_event, url = 'https://www.google.com') => {
     return createNewTab(url);
   });
 
