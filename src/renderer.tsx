@@ -24,14 +24,14 @@
  *    }
  *  });
  * ```
+ * Entry point to the react ui
  */
 
 import './index.css';
 import {createRoot} from "react-dom/client";
 import React from "react";
-import App from "./App";
+import App from "./ui/App";
 
-// console.log('👋 This message is being logged by "renderer.ts", included via Vite');
 // Mount React app
 const container = document.getElementById('root');
 if (container) {
@@ -42,5 +42,3 @@ if (container) {
         </React.StrictMode>
     );
 }
-
-console.log('👋 React renderer initialized');

@@ -1,43 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import './App.css';
-import TabsBar from './TabsBar';
+import React, {useEffect, useRef, useState} from "react";
 
-// Define TypeScript interface for the electron API
-interface ElectronAPI {
-    navigateTo: (url: string) => Promise<boolean>;
-    goBack: () => Promise<boolean>;
-    goForward: () => Promise<boolean>;
-    getCurrentUrl: () => Promise<string>;
-    onUrlChange: (callback: (url: string) => void) => void;
-    onLoadingChange: (callback: (isLoading: boolean) => void) => void;
-    removeListeners: () => void;
-    createTab: (url?: string) => Promise<string>;
-}
-
-// Add type declaration for the window.electronAPI
-declare global {
-    interface Window {
-        electronAPI: ElectronAPI;
-    }
-}
-
-const App: React.FC = () => {
-    // Determine which view to render based on URL hash
-    const viewType = window.location.hash.slice(1) || 'navigation';
-
-    // Add console logging to debug rendering
-    console.log('Rendering view:', viewType);
-
-    // Render the appropriate component based on view type
-    return (
-        <div className="app-container">
-            {viewType === 'tabs' && <TabsBar />}
-            {viewType === 'navigation' && <NavigationBar />}
-        </div>
-    );
-};
-
-// Navigation component
 const NavigationBar: React.FC = () => {
     const [url, setUrl] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -126,6 +88,7 @@ const NavigationBar: React.FC = () => {
                         +
                     </button>
                 </div>
+                {isLoading && <div className="loading-indicator">Loading...</div>}
 
                 <div className="url-bar-container">
                     <input
@@ -134,10 +97,9 @@ const NavigationBar: React.FC = () => {
                         className="url-input"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
-                        onKeyPress={handleKeyPress}
+                        onKeyDownCapture={handleKeyPress}
                         placeholder="Enter URL..."
                     />
-                    {isLoading && <div className="loading-indicator">Loading...</div>}
                 </div>
 
                 <button
@@ -151,4 +113,4 @@ const NavigationBar: React.FC = () => {
     );
 };
 
-export default App;
+export default NavigationBar

@@ -25,12 +25,12 @@ const config: ForgeConfig = {
           target: 'main',
         },
         {
-          entry: 'src/preload.ts',
+          entry: 'src/preloads/preload.ts',
           config: 'vite.preload.config.ts',
           target: 'preload',
         },
         {
-          entry: 'src/tabs-preload.ts',
+          entry: 'src/preloads/tabs-preload.ts',
           config: 'vite.preload.config.ts',
           target: 'preload',
         },

@@ -26,7 +26,7 @@ interface TabInfo {
   isActive: boolean;
 }
 
-let tabs: TabInfo[] = [];
+const tabs: TabInfo[] = [];
 let activeTabId: string | null = null;
 
 const createWindow = () => {
@@ -45,22 +45,7 @@ const createWindow = () => {
   console.log('Main preload:', preloadPath);
   console.log('Tabs preload:', tabsPreloadPath);
 
-  try {
-    // Log preload script paths for debugging
-    require('fs').accessSync(preloadPath, require('fs').constants.F_OK);
-    console.log('Main preload script exists');
-  } catch (err) {
-    console.error('Main preload script not found:', err);
-  }
-
-  try {
-    require('fs').accessSync(tabsPreloadPath, require('fs').constants.F_OK);
-    console.log('Tabs preload script exists');
-  } catch (err) {
-    console.error('Tabs preload script not found:', err);
-  }
-
-  // Create the main BaseWindow
+   // Create the main BaseWindow
   mainWindow = new BaseWindow(windowOptions);
 
   // Create the tabs WebContentsView
@@ -150,7 +135,7 @@ const createWindow = () => {
   }
 
   // Open DevTools for tabs view (helpful for debugging)
-  tabsView.webContents.openDevTools({ mode: 'detach' });
+  // tabsView.webContents.openDevTools({ mode: 'detach' });
 
   // Load the navigation UI
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -163,7 +148,7 @@ const createWindow = () => {
   }
 
   // Open DevTools for navigation view (helpful for debugging)
-  navigationView.webContents.openDevTools({ mode: 'detach' });
+  // navigationView.webContents.openDevTools({ mode: 'detach' });
 
   // Create an initial tab
   createNewTab('https://www.google.com');
