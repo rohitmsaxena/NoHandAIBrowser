@@ -8,6 +8,7 @@ import {
   SIDEBAR_EXPANDED_WIDTH,
   TAB_BAR_HEIGHT,
 } from "../constants/appConstants";
+import { tabManager } from "./tabManager";
 
 // Singleton for managing the main application window
 export class WindowManager implements IWindowManager {
@@ -167,6 +168,10 @@ export class WindowManager implements IWindowManager {
     if (!this.window) return;
     const newBounds = this.window.getContentBounds();
     this.updateViewBounds(newBounds);
+
+    // Notify tab manager to update the active tab's content view
+    // This ensures the website display area fills the available space
+    tabManager.updateTabLayoutsForSidebar();
   }
 
   // Update view bounds based on current window size and sidebar state

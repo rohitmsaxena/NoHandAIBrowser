@@ -139,7 +139,7 @@ export class TabManager implements ITabManager {
     this.notifyNavigationUpdated();
   }
 
-  // Adjust tab layouts when sidebar state changes
+  // Adjust tab layouts when sidebar state changes or window is resized
   updateTabLayoutsForSidebar(): void {
     const contentBounds = windowManager.getContentBounds();
     const isSidebarExpanded = windowManager.getSidebarState();
@@ -157,6 +157,18 @@ export class TabManager implements ITabManager {
         height: contentBounds.height - HEADER_HEIGHT,
       });
     }
+
+    // Also update any hidden tabs to maintain proper sizing
+    this.tabs.forEach((tab) => {
+      if (!tab.isActive) {
+        tab.contentView.setBounds({
+          x: 0,
+          y: HEADER_HEIGHT,
+          width: contentBounds.width - sidebarWidth,
+          height: 0, // Height is 0 for hidden tabs
+        });
+      }
+    });
   }
 
   // Get all tabs (simplified for renderer)
