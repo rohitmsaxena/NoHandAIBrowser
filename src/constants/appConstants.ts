@@ -38,4 +38,7 @@ export const IPC_CHANNELS = {
   // AI Chat
   SEND_CHAT_MESSAGE: "send-chat-message",
   CHAT_MESSAGE_RECEIVED: "chat-message-received",
+
+  // File operations
+  SELECT_MODEL_FILE: "select-model-file",
 };
