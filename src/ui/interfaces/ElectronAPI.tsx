@@ -7,4 +7,5 @@ export interface ElectronAPI {
   onLoadingChange: (callback: (isLoading: boolean) => void) => void;
   removeListeners: () => void;
   createTab: (url?: string) => Promise<string>;
+  selectModelFile: () => Promise<string | null>;
 }
