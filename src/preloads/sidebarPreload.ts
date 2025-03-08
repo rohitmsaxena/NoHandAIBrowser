@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import { AI_IPC_CHANNELS } from "../ipc/aiIpcHandler";
 
 // Chat message interface
 interface ChatMessage {
@@ -6,6 +7,20 @@ interface ChatMessage {
   content: string;
   sender: "user" | "ai";
   timestamp: number;
+}
+
+// Model config interface (needs to match the one in modelManager.ts)
+interface ModelConfig {
+  id: string;
+  name: string;
+  description: string;
+  path: string;
+  parameters: number;
+  contextSize: number;
+  isLoaded: boolean;
+  type: "chat" | "vision" | "embedding";
+  quantization: "4-bit" | "5-bit" | "8-bit" | "none";
+  size: number;
 }
 
 // Expose protected methods for sidebar
@@ -38,9 +53,6 @@ contextBridge.exposeInMainWorld("sidebarAPI", {
     );
   },
 
-  // File dialog functionality
-  selectModelFile: () => ipcRenderer.invoke("select-model-file"),
-
   // Remove listeners (for cleanup)
   removeListeners: () => {
     ipcRenderer.removeAllListeners("sidebar-state-changed");
@@ -48,8 +60,42 @@ contextBridge.exposeInMainWorld("sidebarAPI", {
   },
 });
 
-// Also expose electronAPI for compatibility
+// Also expose electronAPI for compatibility with navigation and file dialogs
 contextBridge.exposeInMainWorld("electronAPI", {
   // File dialog functionality
   selectModelFile: () => ipcRenderer.invoke("select-model-file"),
+});
+
+// Expose AI API functionality
+contextBridge.exposeInMainWorld("aiAPI", {
+  // Model management
+  getAvailableModels: () =>
+    ipcRenderer.invoke(AI_IPC_CHANNELS.GET_AVAILABLE_MODELS),
+  registerModel: (config: Omit<ModelConfig, "isLoaded">) =>
+    ipcRenderer.invoke(AI_IPC_CHANNELS.REGISTER_MODEL, config),
+  loadModel: (modelId: string) =>
+    ipcRenderer.invoke(AI_IPC_CHANNELS.LOAD_MODEL, modelId),
+  unloadModel: (modelId: string) =>
+    ipcRenderer.invoke(AI_IPC_CHANNELS.UNLOAD_MODEL, modelId),
+  getLoadedModels: () => ipcRenderer.invoke(AI_IPC_CHANNELS.GET_LOADED_MODELS),
+
+  // Event listeners for model loading/unloading
+  onModelLoaded: (callback: (modelId: string) => void) => {
+    ipcRenderer.removeAllListeners(AI_IPC_CHANNELS.MODEL_LOADED);
+    ipcRenderer.on(AI_IPC_CHANNELS.MODEL_LOADED, (_event, modelId) =>
+      callback(modelId),
+    );
+  },
+  onModelUnloaded: (callback: (modelId: string) => void) => {
+    ipcRenderer.removeAllListeners(AI_IPC_CHANNELS.MODEL_UNLOADED);
+    ipcRenderer.on(AI_IPC_CHANNELS.MODEL_UNLOADED, (_event, modelId) =>
+      callback(modelId),
+    );
+  },
+
+  // Cleanup helpers
+  removeAllListeners: () => {
+    ipcRenderer.removeAllListeners(AI_IPC_CHANNELS.MODEL_LOADED);
+    ipcRenderer.removeAllListeners(AI_IPC_CHANNELS.MODEL_UNLOADED);
+  },
 });

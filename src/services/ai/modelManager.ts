@@ -29,10 +29,16 @@ export class ModelManager {
   constructor() {
     // Store models in userData directory
     this.modelsDir = path.join(app.getPath("userData"), "models");
+    console.log("Models directory:", this.modelsDir);
 
     // Create models directory if it doesn't exist
     if (!fs.existsSync(this.modelsDir)) {
-      fs.mkdirSync(this.modelsDir, { recursive: true });
+      try {
+        fs.mkdirSync(this.modelsDir, { recursive: true });
+        console.log("Created models directory");
+      } catch (error) {
+        console.error("Error creating models directory:", error);
+      }
     }
 
     // Load model configs on startup
@@ -44,8 +50,10 @@ export class ModelManager {
     if (this.initialized) return true;
 
     try {
+      console.log("Initializing llama...");
       this.llama = await getLlama();
       this.initialized = true;
+      console.log("Llama initialized successfully");
       return true;
     } catch (error) {
       console.error("Error initializing llama:", error);
@@ -56,6 +64,7 @@ export class ModelManager {
   // Load model configurations from disk
   private loadModelConfigs(): void {
     const configPath = path.join(this.modelsDir, "model-configs.json");
+    console.log("Loading model configs from:", configPath);
 
     try {
       if (fs.existsSync(configPath)) {
@@ -69,6 +78,8 @@ export class ModelManager {
         }
 
         console.log(`Loaded ${this.modelConfigs.size} model configurations`);
+      } else {
+        console.log("No existing model configurations found");
       }
     } catch (error) {
       console.error("Error loading model configurations:", error);
@@ -78,6 +89,7 @@ export class ModelManager {
   // Save model configurations to disk
   private saveModelConfigs(): void {
     const configPath = path.join(this.modelsDir, "model-configs.json");
+    console.log("Saving model configs to:", configPath);
 
     try {
       const configData: Record<string, ModelConfig> = {};
@@ -87,6 +99,7 @@ export class ModelManager {
       }
 
       fs.writeFileSync(configPath, JSON.stringify(configData, null, 2));
+      console.log("Model configurations saved successfully");
     } catch (error) {
       console.error("Error saving model configurations:", error);
     }
@@ -94,27 +107,51 @@ export class ModelManager {
 
   // Get the list of available models
   getAvailableModels(): ModelConfig[] {
+    console.log("Getting available models:", this.modelConfigs.size);
     return Array.from(this.modelConfigs.values());
   }
 
   // Register a new model
   registerModel(config: Omit<ModelConfig, "isLoaded">): ModelConfig {
-    const newConfig: ModelConfig = {
-      ...config,
-      isLoaded: false,
-    };
+    console.log("Registering new model:", config);
 
-    this.modelConfigs.set(config.id, newConfig);
-    this.saveModelConfigs();
+    // Check if model file exists
+    if (!fs.existsSync(config.path)) {
+      console.error(`Model file not found at ${config.path}`);
+      throw new Error(`Model file not found at ${config.path}`);
+    }
 
-    return newConfig;
+    // Get file size
+    try {
+      const stats = fs.statSync(config.path);
+      const fileSizeMB = Math.round(stats.size / (1024 * 1024));
+      console.log(`Model file size: ${fileSizeMB} MB`);
+
+      const newConfig: ModelConfig = {
+        ...config,
+        size: fileSizeMB,
+        isLoaded: false,
+      };
+
+      this.modelConfigs.set(config.id, newConfig);
+      this.saveModelConfigs();
+      console.log("Model registered successfully:", newConfig);
+
+      return newConfig;
+    } catch (err) {
+      console.error("Error registering model:", err);
+      throw err;
+    }
   }
 
   // Load a model into memory
   async loadModel(modelId: string): Promise<boolean> {
     try {
+      console.log("Attempting to load model:", modelId);
+
       // Make sure llama is initialized
       if (!this.initialized) {
+        console.log("Llama not initialized, initializing now...");
         const success = await this.initialize();
         if (!success) {
           throw new Error("Failed to initialize llama");
@@ -133,15 +170,22 @@ export class ModelManager {
         throw new Error(`Model file not found at ${modelPath}`);
       }
 
+      // Check if model is already loaded
+      if (this.loadedModels.has(modelId)) {
+        console.log(`Model ${modelId} is already loaded`);
+        return true;
+      }
+
       // Unload other models if memory constraints require it
       // This is a simple implementation - could be more sophisticated based on RAM usage
       if (modelConfig.parameters > 7) {
         // If model is larger than 7B parameters
+        console.log("Large model detected, unloading other models...");
         await this.unloadAllModels();
       }
 
       // Load the model
-      console.log(`Loading model: ${modelConfig.name}`);
+      console.log(`Loading model: ${modelConfig.name} from ${modelPath}`);
 
       try {
         // Load the model using the llama instance
@@ -151,6 +195,7 @@ export class ModelManager {
         });
 
         // Create a context
+        console.log("Creating model context...");
         const context = await model.createContext();
 
         // Store the loaded model and context
@@ -159,6 +204,7 @@ export class ModelManager {
         // Update config
         modelConfig.isLoaded = true;
         this.modelConfigs.set(modelId, modelConfig);
+        this.saveModelConfigs();
 
         // Set as active model
         this.activeModelId = modelId;
@@ -178,8 +224,11 @@ export class ModelManager {
   // Unload a specific model
   async unloadModel(modelId: string): Promise<boolean> {
     try {
+      console.log("Attempting to unload model:", modelId);
+
       const modelData = this.loadedModels.get(modelId);
       if (!modelData) {
+        console.log(`Model ${modelId} is not loaded`);
         return false; // Model not loaded
       }
 
@@ -188,6 +237,7 @@ export class ModelManager {
       if (modelConfig) {
         modelConfig.isLoaded = false;
         this.modelConfigs.set(modelId, modelConfig);
+        this.saveModelConfigs();
       }
 
       // Remove from loaded models
@@ -209,6 +259,7 @@ export class ModelManager {
   // Unload all models
   async unloadAllModels(): Promise<void> {
     const modelIds = Array.from(this.loadedModels.keys());
+    console.log(`Unloading all models: ${modelIds.join(", ")}`);
 
     for (const modelId of modelIds) {
       await this.unloadModel(modelId);
@@ -220,33 +271,35 @@ export class ModelManager {
   // Get a chat session for the currently active model
   async getChatSession(): Promise<LlamaChatSession | null> {
     if (!this.activeModelId) {
+      console.log("No active model set");
       return null;
     }
 
-    const modelData = this.loadedModels.get(this.activeModelId);
-    if (!modelData) {
-      return null;
-    }
-
-    // Create a chat session with the model's context sequence
-    return new LlamaChatSession({
-      contextSequence: modelData.context.getSequence(),
-    });
+    return this.getChatSessionForModel(this.activeModelId);
   }
 
   // Get a chat session for a specific model
   async getChatSessionForModel(
     modelId: string,
   ): Promise<LlamaChatSession | null> {
+    console.log(`Getting chat session for model: ${modelId}`);
+
     const modelData = this.loadedModels.get(modelId);
     if (!modelData) {
+      console.log(`Model ${modelId} is not loaded`);
       return null;
     }
 
-    // Create a chat session with the model's context sequence
-    return new LlamaChatSession({
-      contextSequence: modelData.context.getSequence(),
-    });
+    try {
+      // Create a chat session with the model's context sequence
+      console.log("Creating new chat session");
+      return new LlamaChatSession({
+        contextSequence: modelData.context.getSequence(),
+      });
+    } catch (error) {
+      console.error("Error creating chat session:", error);
+      return null;
+    }
   }
 
   // Check if a model is loaded
@@ -262,9 +315,11 @@ export class ModelManager {
   // Set the active model
   setActiveModel(modelId: string): boolean {
     if (!this.loadedModels.has(modelId)) {
+      console.log(`Cannot set active model: ${modelId} is not loaded`);
       return false;
     }
 
+    console.log(`Setting active model to: ${modelId}`);
     this.activeModelId = modelId;
     return true;
   }

@@ -4,6 +4,7 @@ import { navigationManager } from "../managers/navigationManager";
 import { sidebarManager } from "../managers/sidebarManager";
 import { IPC_CHANNELS } from "../constants/appConstants";
 import { windowManager } from "../managers/windowManager";
+import { aiIpcHandler } from "./aiIpcHandler";
 
 export class IpcHandler {
   // Setup all IPC handlers
@@ -12,6 +13,11 @@ export class IpcHandler {
     this.setupNavigationHandlers();
     this.setupSidebarHandlers();
     this.setupFileHandlers();
+
+    // Add AI IPC handlers
+    aiIpcHandler.setupHandlers();
+
+    console.log("All IPC handlers set up");
   }
 
   // Setup IPC handlers for tab management
@@ -37,6 +43,8 @@ export class IpcHandler {
     ipcMain.handle(IPC_CHANNELS.GET_TABS, () => {
       return tabManager.getTabs();
     });
+
+    console.log("Tab IPC handlers set up");
   }
 
   // Setup IPC handlers for navigation
@@ -60,6 +68,8 @@ export class IpcHandler {
     ipcMain.handle(IPC_CHANNELS.GET_CURRENT_URL, () => {
       return navigationManager.getCurrentUrl();
     });
+
+    console.log("Navigation IPC handlers set up");
   }
 
   // Setup IPC handlers for sidebar
@@ -78,6 +88,8 @@ export class IpcHandler {
     ipcMain.handle(IPC_CHANNELS.SEND_CHAT_MESSAGE, async (_event, message) => {
       return sidebarManager.sendChatMessage(message);
     });
+
+    console.log("Sidebar IPC handlers set up");
   }
 
   // Setup IPC handlers for file operations
@@ -85,23 +97,37 @@ export class IpcHandler {
     // Handle model file selection
     ipcMain.handle(IPC_CHANNELS.SELECT_MODEL_FILE, async () => {
       const window = windowManager.getWindow();
-      if (!window) return null;
-
-      const result = await dialog.showOpenDialog(window, {
-        properties: ["openFile"],
-        filters: [
-          { name: "AI Models", extensions: ["gguf", "bin", "ggml"] },
-          { name: "All Files", extensions: ["*"] },
-        ],
-        title: "Select AI Model File",
-      });
-
-      if (result.canceled || result.filePaths.length === 0) {
+      if (!window) {
+        console.error("No window available for file dialog");
         return null;
       }
 
-      return result.filePaths[0];
+      try {
+        console.log("Opening file selection dialog");
+        const result = await dialog.showOpenDialog(window, {
+          properties: ["openFile"],
+          filters: [
+            { name: "AI Models", extensions: ["gguf", "bin", "ggml"] },
+            { name: "All Files", extensions: ["*"] },
+          ],
+          title: "Select AI Model File",
+        });
+
+        console.log("File dialog result:", result);
+        if (result.canceled || result.filePaths.length === 0) {
+          console.log("File selection cancelled or no file selected");
+          return null;
+        }
+
+        console.log("Selected file:", result.filePaths[0]);
+        return result.filePaths[0];
+      } catch (error) {
+        console.error("Error in file selection dialog:", error);
+        return null;
+      }
     });
+
+    console.log("File IPC handlers set up");
   }
 }
 
