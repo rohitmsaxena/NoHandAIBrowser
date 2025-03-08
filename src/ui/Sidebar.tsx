@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./Sidebar.css";
-import AISettings from "./AISettings";
 
 // Chat message interface
 interface ChatMessage {
@@ -16,7 +15,6 @@ const Sidebar: React.FC = () => {
   const [inputValue, setInputValue] = useState<string>("");
   const [apiAvailable, setApiAvailable] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"chat" | "ai-settings">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom of messages
@@ -150,68 +148,46 @@ const Sidebar: React.FC = () => {
         <div className="sidebar-content">
           <div className="sidebar-header">
             <h2>AI Assistant</h2>
-            <div className="sidebar-tabs">
-              <button
-                className={`tab-button ${activeTab === "chat" ? "active" : ""}`}
-                onClick={() => setActiveTab("chat")}
-              >
-                Chat
-              </button>
-              <button
-                className={`tab-button ${activeTab === "ai-settings" ? "active" : ""}`}
-                onClick={() => setActiveTab("ai-settings")}
-              >
-                Settings
-              </button>
-            </div>
           </div>
 
-          {activeTab === "chat" ? (
-            <>
-              <div className="chat-messages">
-                {messages.length === 0 ? (
-                  <div className="empty-chat">
-                    <p>
-                      Send a message to start chatting with the AI assistant.
-                    </p>
-                  </div>
-                ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`chat-message ${message.sender === "user" ? "user-message" : "ai-message"}`}
-                    >
-                      <div className="message-content">{message.content}</div>
-                      <div className="message-timestamp">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
+          <div className="chat-messages">
+            {messages.length === 0 ? (
+              <div className="empty-chat">
+                <p>Send a message to start chatting with the AI assistant.</p>
               </div>
-
-              <div className="chat-input-container">
-                <input
-                  type="text"
-                  className="chat-input"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Type a message..."
-                />
-                <button
-                  className="send-button"
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim()}
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`chat-message ${message.sender === "user" ? "user-message" : "ai-message"}`}
                 >
-                  Send
-                </button>
-              </div>
-            </>
-          ) : (
-            <AISettings isExpanded={isExpanded} />
-          )}
+                  <div className="message-content">{message.content}</div>
+                  <div className="message-timestamp">
+                    {new Date(message.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="chat-input-container">
+            <input
+              type="text"
+              className="chat-input"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Type a message..."
+            />
+            <button
+              className="send-button"
+              onClick={handleSendMessage}
+              disabled={!inputValue.trim()}
+            >
+              Send
+            </button>
+          </div>
         </div>
       )}
     </div>

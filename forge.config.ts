@@ -44,11 +44,6 @@ const config: ForgeConfig = {
           config: "vite.preload.config.ts",
           target: "preload",
         },
-        {
-          entry: "src/preloads/aiPreload.ts",
-          config: "vite.preload.config.ts",
-          target: "preload",
-        },
       ],
       renderer: [
         {
