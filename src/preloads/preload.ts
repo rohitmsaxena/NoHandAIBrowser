@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { IPC_CHANNELS } from "../constants/appConstants";
 
 // Expose protected methods for navigation control
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -28,9 +27,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Tab functions directly accessible from the navigation bar
   createTab: (url?: string) => ipcRenderer.invoke("create-tab", url),
-
-  // Model file selection
-  selectModelFile: () => ipcRenderer.invoke(IPC_CHANNELS.SELECT_MODEL_FILE),
 
   // Cleanup functions
   removeListeners: () => {

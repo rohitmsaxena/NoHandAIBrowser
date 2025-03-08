@@ -38,18 +38,9 @@ contextBridge.exposeInMainWorld("sidebarAPI", {
     );
   },
 
-  // File dialog functionality
-  selectModelFile: () => ipcRenderer.invoke("select-model-file"),
-
   // Remove listeners (for cleanup)
   removeListeners: () => {
     ipcRenderer.removeAllListeners("sidebar-state-changed");
     ipcRenderer.removeAllListeners("chat-message-received");
   },
-});
-
-// Also expose electronAPI for compatibility
-contextBridge.exposeInMainWorld("electronAPI", {
-  // File dialog functionality
-  selectModelFile: () => ipcRenderer.invoke("select-model-file"),
 });

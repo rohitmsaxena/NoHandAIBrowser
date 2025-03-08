@@ -1,9 +1,8 @@
-import { dialog, ipcMain } from "electron";
+import { ipcMain } from "electron";
 import { tabManager } from "../managers/tabManager";
 import { navigationManager } from "../managers/navigationManager";
 import { sidebarManager } from "../managers/sidebarManager";
 import { IPC_CHANNELS } from "../constants/appConstants";
-import { windowManager } from "../managers/windowManager";
 
 export class IpcHandler {
   // Setup all IPC handlers
@@ -11,7 +10,6 @@ export class IpcHandler {
     this.setupTabHandlers();
     this.setupNavigationHandlers();
     this.setupSidebarHandlers();
-    this.setupFileHandlers();
   }
 
   // Setup IPC handlers for tab management
@@ -77,30 +75,6 @@ export class IpcHandler {
     // Send chat message
     ipcMain.handle(IPC_CHANNELS.SEND_CHAT_MESSAGE, async (_event, message) => {
       return sidebarManager.sendChatMessage(message);
-    });
-  }
-
-  // Setup IPC handlers for file operations
-  private setupFileHandlers(): void {
-    // Handle model file selection
-    ipcMain.handle(IPC_CHANNELS.SELECT_MODEL_FILE, async () => {
-      const window = windowManager.getWindow();
-      if (!window) return null;
-
-      const result = await dialog.showOpenDialog(window, {
-        properties: ["openFile"],
-        filters: [
-          { name: "AI Models", extensions: ["gguf", "bin", "ggml"] },
-          { name: "All Files", extensions: ["*"] },
-        ],
-        title: "Select AI Model File",
-      });
-
-      if (result.canceled || result.filePaths.length === 0) {
-        return null;
-      }
-
-      return result.filePaths[0];
     });
   }
 }
