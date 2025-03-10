@@ -1,11 +1,13 @@
 import { app, BaseWindow } from "electron";
-import started from "electron-squirrel-startup";
+import startupHandler from "./esm-startup-handler";
 import { windowManager } from "./managers/windowManager";
 import { tabManager } from "./managers/tabManager";
 import { ipcHandler } from "./ipc/ipcHandler";
 import { DEFAULT_URL } from "./constants/appConstants";
 import { birpcManager } from "./managers/BirpcManager";
 import { llmManager } from "./managers/llmManager";
+
+const started = startupHandler;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -28,7 +30,7 @@ app.whenReady().then(async () => {
     });
   }
 
-  // Create an initial tab
+  // CreNate an initial tab
   tabManager.createTab(DEFAULT_URL);
 });
 

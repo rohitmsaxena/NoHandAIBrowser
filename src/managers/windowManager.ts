@@ -1,6 +1,6 @@
 import { BaseWindow, WebContentsView } from "electron";
 import path from "node:path";
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 import { IWindowManager } from "../types/browserTypes";
 import {
   NAVIGATION_HEIGHT,
@@ -10,6 +10,11 @@ import {
   TAB_BAR_HEIGHT,
 } from "../constants/appConstants";
 import { tabManager } from "./tabManager";
+
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Singleton for managing the main application window
 export class WindowManager implements IWindowManager {
