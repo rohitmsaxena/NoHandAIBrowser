@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
+  "type": "module",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
@@ -42,6 +43,7 @@
     "vite": "^5.4.14"
   },
   "dependencies": {
+    "birpc": "^2.2.0",
     "electron-squirrel-startup": "^1.0.1",
     "node-llama-cpp": "^3.6.0",
     "react": "^19.0.0",

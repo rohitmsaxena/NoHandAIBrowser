@@ -38,4 +38,10 @@ export const IPC_CHANNELS = {
   // AI Chat
   SEND_CHAT_MESSAGE: "send-chat-message",
   CHAT_MESSAGE_RECEIVED: "chat-message-received",
+  STOP_CHAT_GENERATION: "stop-chat-generation",
+
+  // LLM Management
+  SELECT_MODEL_FILE: "select-model-file",
+  GET_LLM_STATE: "get-llm-state",
+  LLM_STATE_CHANGED: "llm-state-changed",
 };

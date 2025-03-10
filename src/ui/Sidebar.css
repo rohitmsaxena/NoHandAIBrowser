@@ -73,6 +73,7 @@
     color: #888;
     text-align: center;
     padding: 0 20px;
+    gap: 20px;
 }
 
 .chat-message {
@@ -96,14 +97,93 @@
     margin-right: 20%;
 }
 
+.system-message {
+    align-self: center;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    color: #555;
+    font-style: italic;
+    max-width: 90%;
+}
+
+.model-prompt-message {
+    margin-top: 20px;
+    background-color: #f8f8f8;
+    border: 1px dashed #ccc;
+}
+
 .message-content {
     margin-bottom: 5px;
+    line-height: 1.4;
 }
 
 .message-timestamp {
     font-size: 0.7rem;
     color: #888;
     text-align: right;
+}
+
+/* Model selection */
+.model-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 15px 0;
+    padding: 15px;
+    border-radius: 8px;
+    background-color: #f0f0f0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.select-model-button {
+    background-color: #4285f4;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 15px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.select-model-button:hover {
+    background-color: #3367d6;
+}
+
+.select-model-button:disabled {
+    background-color: #a1c0ff;
+    cursor: not-allowed;
+}
+
+.loading-progress {
+    font-size: 0.9rem;
+    color: #4285f4;
+    margin-top: 8px;
+}
+
+/* Typing indicator */
+.typing-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 10px;
+    position: relative;
+    margin-left: 5px;
+}
+
+.typing-indicator::after {
+    content: "...";
+    position: absolute;
+    animation: typingDots 1.5s infinite;
+    color: #666;
+    font-weight: bold;
+}
+
+@keyframes typingDots {
+    0% { content: "."; }
+    33% { content: ".."; }
+    66% { content: "..."; }
+    100% { content: "."; }
 }
 
 /* Chat input */
@@ -122,17 +202,25 @@
     outline: none;
 }
 
-.send-button {
+.send-button, .stop-button {
     margin-left: 8px;
     padding: 8px 16px;
-    background-color: #4caf50;
-    color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
 }
 
-.send-button:disabled {
+.send-button {
+    background-color: #4caf50;
+    color: white;
+}
+
+.stop-button {
+    background-color: #f44336;
+    color: white;
+}
+
+.send-button:disabled, .stop-button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
 }

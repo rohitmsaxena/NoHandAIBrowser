@@ -5,8 +5,38 @@ import "./Sidebar.css";
 interface ChatMessage {
   id: string;
   content: string;
-  sender: "user" | "ai";
+  sender: "user" | "ai" | "system";
   timestamp: number;
+  streaming?: boolean;
+}
+
+// LLM State interface
+interface LlmState {
+  llama: {
+    loaded: boolean;
+    error?: string;
+  };
+  selectedModelFilePath?: string;
+  model: {
+    loaded: boolean;
+    loading: boolean;
+    loadProgress?: number;
+    name?: string;
+    error?: string;
+  };
+  context: {
+    loaded: boolean;
+    error?: string;
+  };
+  contextSequence: {
+    loaded: boolean;
+    error?: string;
+  };
+  chatSession: {
+    loaded: boolean;
+    generating: boolean;
+    error?: string;
+  };
 }
 
 const Sidebar: React.FC = () => {
@@ -15,11 +45,23 @@ const Sidebar: React.FC = () => {
   const [inputValue, setInputValue] = useState<string>("");
   const [apiAvailable, setApiAvailable] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [llmState, setLlmState] = useState<LlmState | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom of messages
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Check if the model is fully loaded and ready
+  const isModelReady = () => {
+    return (
+      llmState?.llama.loaded &&
+      llmState?.model.loaded &&
+      llmState?.context.loaded &&
+      llmState?.contextSequence.loaded &&
+      llmState?.chatSession.loaded
+    );
   };
 
   // Log for debugging
@@ -55,10 +97,40 @@ const Sidebar: React.FC = () => {
       // Listen for new chat messages
       window.sidebarAPI.onChatMessageReceived((message) => {
         console.log("New chat message:", message);
-        setMessages((prevMessages) => [...prevMessages, message]);
+        setMessages((prevMessages) => {
+          // Look for an existing message with the same ID (for updates)
+          const index = prevMessages.findIndex((msg) => msg.id === message.id);
+
+          if (index !== -1) {
+            // Update existing message
+            const updatedMessages = [...prevMessages];
+            updatedMessages[index] = message;
+            return updatedMessages;
+          } else {
+            // Add new message
+            return [...prevMessages, message];
+          }
+        });
 
         // Scroll to bottom on new message
         setTimeout(scrollToBottom, 100);
+      });
+
+      // Get initial LLM state
+      window.sidebarAPI
+        .getLlmState()
+        .then((initialState) => {
+          console.log("Initial LLM state:", initialState);
+          setLlmState(initialState);
+        })
+        .catch((err) => {
+          console.error("Error getting LLM state:", err);
+        });
+
+      // Listen for LLM state changes
+      window.sidebarAPI.onLlmStateChanged((newState) => {
+        console.log("LLM state changed:", newState);
+        setLlmState(newState);
       });
 
       // Cleanup on unmount
@@ -108,11 +180,52 @@ const Sidebar: React.FC = () => {
       });
   };
 
+  // Handle stopping message generation
+  const handleStopGeneration = () => {
+    if (window.sidebarAPI) {
+      window.sidebarAPI.stopChatGeneration().catch((err) => {
+        console.error("Error stopping generation:", err);
+      });
+    }
+  };
+
+  // Handle selecting a model file
+  const handleSelectModel = () => {
+    if (window.sidebarAPI) {
+      window.sidebarAPI.selectModelFile().catch((err) => {
+        console.error("Error selecting model file:", err);
+        setErrorMessage("Error selecting model file: " + err.message);
+      });
+    }
+  };
+
   // Handle input key press (send on Enter)
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       handleSendMessage();
     }
+  };
+
+  // Render model selection UI
+  const renderModelSelection = () => {
+    return (
+      <div className="model-selection">
+        <button
+          onClick={handleSelectModel}
+          className="select-model-button"
+          disabled={llmState?.model.loading}
+        >
+          {llmState?.model.loading
+            ? "Loading model..."
+            : "Select LLM Model (.gguf)"}
+        </button>
+        {llmState?.model.loading && (
+          <div className="loading-progress">
+            Loading: {Math.round((llmState.model.loadProgress || 0) * 100)}%
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Show a simple error UI if sidebarAPI is not available
@@ -147,28 +260,58 @@ const Sidebar: React.FC = () => {
       {isExpanded && (
         <div className="sidebar-content">
           <div className="sidebar-header">
-            <h2>AI Assistant</h2>
+            <h2>
+              AI Assistant{" "}
+              {isModelReady() && llmState?.model.name
+                ? `(${llmState.model.name})`
+                : ""}
+            </h2>
           </div>
 
           <div className="chat-messages">
             {messages.length === 0 ? (
               <div className="empty-chat">
                 <p>Send a message to start chatting with the AI assistant.</p>
+                {!isModelReady() && renderModelSelection()}
               </div>
             ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`chat-message ${message.sender === "user" ? "user-message" : "ai-message"}`}
-                >
-                  <div className="message-content">{message.content}</div>
-                  <div className="message-timestamp">
-                    {new Date(message.timestamp).toLocaleTimeString()}
+              <>
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`chat-message ${
+                      message.sender === "user"
+                        ? "user-message"
+                        : message.sender === "ai"
+                          ? "ai-message"
+                          : "system-message"
+                    }`}
+                  >
+                    <div className="message-content">
+                      {message.content || (message.streaming ? "..." : "")}
+                      {message.streaming && (
+                        <span className="typing-indicator"></span>
+                      )}
+                    </div>
+                    <div className="message-timestamp">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                {!isModelReady() && messages.length > 0 && (
+                  <div className="chat-message system-message model-prompt-message">
+                    <div className="message-content">
+                      <p>
+                        No AI model is currently loaded. Load a model to get
+                        AI-generated responses.
+                      </p>
+                      {renderModelSelection()}
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           <div className="chat-input-container">
@@ -179,14 +322,21 @@ const Sidebar: React.FC = () => {
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="Type a message..."
+              disabled={llmState?.chatSession.generating}
             />
-            <button
-              className="send-button"
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim()}
-            >
-              Send
-            </button>
+            {llmState?.chatSession.generating ? (
+              <button className="stop-button" onClick={handleStopGeneration}>
+                Stop
+              </button>
+            ) : (
+              <button
+                className="send-button"
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim()}
+              >
+                Send
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import { tabManager } from "../managers/tabManager";
 import { navigationManager } from "../managers/navigationManager";
 import { sidebarManager } from "../managers/sidebarManager";
+import { windowManager } from "../managers/windowManager";
 import { IPC_CHANNELS } from "../constants/appConstants";
 
 export class IpcHandler {
@@ -75,6 +76,30 @@ export class IpcHandler {
     // Send chat message
     ipcMain.handle(IPC_CHANNELS.SEND_CHAT_MESSAGE, async (_event, message) => {
       return sidebarManager.sendChatMessage(message);
+    });
+
+    // Stop message generation
+    ipcMain.handle(IPC_CHANNELS.STOP_CHAT_GENERATION, () => {
+      return sidebarManager.stopMessageGeneration();
+    });
+
+    // Select model file
+    ipcMain.handle(IPC_CHANNELS.SELECT_MODEL_FILE, async () => {
+      return sidebarManager.selectModelFile();
+    });
+
+    // Get LLM state
+    ipcMain.handle(IPC_CHANNELS.GET_LLM_STATE, () => {
+      return sidebarManager.getLlmState();
+    });
+
+    // Set up LLM state change listener to forward to the sidebar
+    sidebarManager.subscribeLlmStateChanges((state) => {
+      const sidebarView = windowManager.getSidebarView();
+
+      if (sidebarView) {
+        sidebarView.webContents.send(IPC_CHANNELS.LLM_STATE_CHANGED, state);
+      }
     });
   }
 }

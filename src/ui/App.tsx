@@ -5,6 +5,44 @@ import { ElectronAPI } from "./interfaces/ElectronAPI";
 import NavigationBar from "./NavigationBar";
 import Sidebar from "./Sidebar";
 
+// LLM State interface
+interface LlmState {
+  llama: {
+    loaded: boolean;
+    error?: string;
+  };
+  selectedModelFilePath?: string;
+  model: {
+    loaded: boolean;
+    loading: boolean;
+    loadProgress?: number;
+    name?: string;
+    error?: string;
+  };
+  context: {
+    loaded: boolean;
+    error?: string;
+  };
+  contextSequence: {
+    loaded: boolean;
+    error?: string;
+  };
+  chatSession: {
+    loaded: boolean;
+    generating: boolean;
+    error?: string;
+  };
+}
+
+// Chat message interface
+interface ChatMessage {
+  id: string;
+  content: string;
+  sender: "user" | "ai" | "system";
+  timestamp: number;
+  streaming?: boolean;
+}
+
 // Add type declaration for the window.electronAPI and window.sidebarAPI
 declare global {
   interface Window {
@@ -13,8 +51,12 @@ declare global {
       toggleSidebar: () => Promise<boolean>;
       getSidebarState: () => Promise<boolean>;
       onSidebarStateChanged: (callback: (isExpanded: boolean) => void) => void;
-      sendChatMessage: (message: string) => Promise<any>;
-      onChatMessageReceived: (callback: (message: any) => void) => void;
+      sendChatMessage: (message: string) => Promise<ChatMessage>;
+      stopChatGeneration: () => Promise<void>;
+      selectModelFile: () => Promise<boolean>;
+      getLlmState: () => Promise<LlmState>;
+      onLlmStateChanged: (callback: (state: LlmState) => void) => void;
+      onChatMessageReceived: (callback: (message: ChatMessage) => void) => void;
       removeListeners: () => void;
     };
     // tabsAPI is declared in TabsBar.tsx

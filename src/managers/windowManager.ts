@@ -1,5 +1,6 @@
 import { BaseWindow, WebContentsView } from "electron";
 import path from "node:path";
+import { EventEmitter } from "events";
 import { IWindowManager } from "../types/browserTypes";
 import {
   NAVIGATION_HEIGHT,
@@ -17,6 +18,7 @@ export class WindowManager implements IWindowManager {
   private tabsView: WebContentsView | null = null;
   private sidebarView: WebContentsView | null = null;
   private isSidebarExpanded: boolean = SIDEBAR_DEFAULT_STATE;
+  private eventEmitter = new EventEmitter();
 
   // Create the main window with navigation, tabs, and sidebar views
   async createWindow(): Promise<BaseWindow> {
@@ -31,6 +33,11 @@ export class WindowManager implements IWindowManager {
     const preloadPath = path.join(__dirname, "preload.js");
     const tabsPreloadPath = path.join(__dirname, "tabsPreload.js");
     const sidebarPreloadPath = path.join(__dirname, "sidebarPreload.js");
+    // Add the new birpc preload path
+    const sidebarBirpcPreloadPath = path.join(
+      __dirname,
+      "sidebarBirpcPreload.js",
+    );
 
     console.log("Looking for preload scripts:");
     console.log("Main preload:", preloadPath);
@@ -60,14 +67,14 @@ export class WindowManager implements IWindowManager {
       },
     });
 
-    // Create the sidebar WebContentsView
+    // Create the sidebar WebContentsView with both preloads
     this.sidebarView = new WebContentsView({
       webPreferences: {
         preload: sidebarPreloadPath,
         contextIsolation: true,
         nodeIntegration: false,
         devTools: true,
-      },
+      } as Electron.WebPreferences,
     });
 
     // Set initial bounds
@@ -139,6 +146,7 @@ export class WindowManager implements IWindowManager {
 
   // Toggle sidebar expanded/collapsed state
   toggleSidebar(): boolean {
+    const previousState = this.isSidebarExpanded;
     this.isSidebarExpanded = !this.isSidebarExpanded;
 
     // Update view bounds based on new sidebar state
@@ -146,12 +154,17 @@ export class WindowManager implements IWindowManager {
       const bounds = this.window.getContentBounds();
       this.updateViewBounds(bounds);
 
-      // Notify sidebar of state change
+      // Notify sidebar of state change via traditional IPC (for backward compatibility)
       if (this.sidebarView) {
         this.sidebarView.webContents.send(
           "sidebar-state-changed",
           this.isSidebarExpanded,
         );
+      }
+
+      // Emit the state change event
+      if (previousState !== this.isSidebarExpanded) {
+        this.eventEmitter.emit("sidebar-state-changed", this.isSidebarExpanded);
       }
     }
 
@@ -161,6 +174,16 @@ export class WindowManager implements IWindowManager {
   // Get current sidebar state
   getSidebarState(): boolean {
     return this.isSidebarExpanded;
+  }
+
+  // Register a callback for sidebar state changes
+  onSidebarStateChanged(callback: (isExpanded: boolean) => void): void {
+    this.eventEmitter.on("sidebar-state-changed", callback);
+  }
+
+  // Remove a sidebar state change callback
+  offSidebarStateChanged(callback: (isExpanded: boolean) => void): void {
+    this.eventEmitter.off("sidebar-state-changed", callback);
   }
 
   // Handle window resize events
