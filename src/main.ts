@@ -1,5 +1,5 @@
 import { app, BaseWindow } from "electron";
-import startupHandler from "./esm-startup-handler";
+import startupHandler from "./esm-startup-handler.js";
 import { windowManager } from "./managers/windowManager";
 import { tabManager } from "./managers/tabManager";
 import { ipcHandler } from "./ipc/ipcHandler";

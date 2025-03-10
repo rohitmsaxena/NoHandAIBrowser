@@ -2,11 +2,8 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    // Set the correct output format
-    outDir: "dist-electron",
     target: "es2022",
     rollupOptions: {
-      // List all native Node.js modules and external dependencies
       external: [
         "electron",
         "electron-squirrel-startup",
@@ -15,12 +12,11 @@ export default defineConfig({
         /node:.*/, // Catch all node: protocol imports
       ],
       output: {
-        format: "esm", // Change to CommonJS output format
+        format: "esm",
       },
     },
   },
   resolve: {
-    // Help Vite properly resolve modules
     mainFields: ["module", "main", "browser"],
     conditions: ["node"],
   },

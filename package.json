@@ -28,6 +28,7 @@
     "@electron-forge/plugin-fuses": "^7.7.0",
     "@electron-forge/plugin-vite": "^7.7.0",
     "@electron/fuses": "^1.8.0",
+    "@originjs/vite-plugin-commonjs": "^1.0.3",
     "@types/electron-squirrel-startup": "^1.0.2",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
